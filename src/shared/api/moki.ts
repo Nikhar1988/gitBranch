@@ -9,6 +9,8 @@ interface MockDataVariantsI {
 export const mockData: MockDataVariantsI =  {
   interseckDate: {  // пересекаться
     scenarios: [
+   
+      
       {
         scenario: "Main",
         version: "Main10",
@@ -39,12 +41,7 @@ export const mockData: MockDataVariantsI =  {
         isDefault: false,
         type: "link"
       },
-      {
-        scenario: "E",
-        version: "B3",
-        isDefault: false,
-        type: "link"
-      },
+     
     ],
     versions: [
       {

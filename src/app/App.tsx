@@ -58,7 +58,7 @@ const sortDateVersionsHandler = (versions: VersionsI[]) => {
 // }
 
 const determineIndex = (updateScenariosInfo:InfoVersionI[], index: number, orderIndexes:number[]) => {
-    // console.log('updateScenariosInfo',updateScenariosInfo, index , orderIndexes )
+    console.log('updateScenariosInfo',updateScenariosInfo, index , orderIndexes )
     if(index <= 1) {
         if( orderIndexes.length === index) orderIndexes.push(index)
         return index
@@ -102,6 +102,7 @@ const addFieldWithScenarioName = (versions: VersionsI[], updateScenariosInfo:Inf
 
 
 const listVersionsByScenario = ( currentVersion: string, versions: VersionsI[]) => {
+    
     let searchVersion = currentVersion
     return versions.filter(item => {
         if(item.version === searchVersion) {
@@ -124,23 +125,30 @@ const findVersionsEveryScenario = (scenario:ScenariosI, versions:VersionsI[], us
 
 
 const filterScenariousByVersions = (scenarios:ScenariosI[], versions:VersionsI[]) => {
-    const usedVersions: string[] = []
+      const usedVersions: string[] = []
+        console.log('usedVersions', usedVersions)
+
+
+
+
     return scenarios.map(scenario => {
-        const itemVersions = listVersionsByScenario(scenario.version, versions) 
-        // const  itemVersions = findVersionsEveryScenario(scenario, versions, usedVersions)
-        console.log('itemVersions',itemVersions)
+        //   const itemVersions = listVersionsByScenario(scenario.version, versions) 
+        //   console.log('itemVersions', itemVersions)
+         const  itemVersions = findVersionsEveryScenario(scenario, versions, usedVersions)
+        
         return {
             name: scenario.scenario, 
             lastVersion: scenario.version,
             isMain: scenario.isDefault,
             type: scenario.type,
             allVersions: itemVersions,
-            dateFrom: versions.find(ver => ver.version === itemVersions[itemVersions.length-1]).createdAt ,
-            dateTo: versions.find(ver => ver.version === itemVersions[0]).createdAt
-             
+            dateFrom: versions.find(ver => ver.version === itemVersions[itemVersions.length-1]).createdAt,
+            dateTo: versions.find(ver => ver.version === itemVersions[0]).createdAt   
         } 
     }) 
     .sort((a,b) => new Date(a.dateFrom).valueOf() - new Date(b.dateFrom).valueOf())
+
+    
 }
 
 const findIndexesEveryBranch = (versions: VersionsI[], updateScenariosInfo:InfoVersionI[]) => {
@@ -156,13 +164,11 @@ const findIndexesEveryBranch = (versions: VersionsI[], updateScenariosInfo:InfoV
             else indexBranchStore[branchIndex] = [index]
         })
     })
-
-    console.log('ggggggggggggggggggggg', indexBranchStore)
     
     const orderIndexBranchStore:number[] = lastVersionBranchList.map(lastVer => {
         return versions.find(ver => ver.version === lastVer).orderIndex
     })
- console.log('indexBranchStore',updateScenariosInfo,indexBranchStore)
+  
     return updateScenariosInfo.map((item,i) => ({
         ...item, 
         indexesSortVersions: indexBranchStore[i], 
@@ -174,19 +180,19 @@ const findIndexesEveryBranch = (versions: VersionsI[], updateScenariosInfo:InfoV
 
 
 const transformDataForRendering = (data: MockDataI) => {
-     // 1. сортируем массив versions по дате    
-     const sortedVersionsFromDate = sortDateVersionsHandler(data.versions)
-
+    // 1. сортируем массив versions по дате    
+    const sortedVersionsForDate = sortDateVersionsHandler(data.versions)
+    
     // 2. Получить данные где отображены сценарии с названиями именно их версий 
-    const scenariosInfo = filterScenariousByVersions(data.scenarios, sortedVersionsFromDate)
+    const scenariosInfo = filterScenariousByVersions(data.scenarios, sortedVersionsForDate)
 
     // 3. в versions  добовляем поле refer обозначающее какой сценарий относится к какой ветке 
-    const versionsRenderData  = addFieldWithScenarioName(sortedVersionsFromDate, scenariosInfo)
+    const versionsRenderData  = addFieldWithScenarioName(sortedVersionsForDate, scenariosInfo)
 
     // 4. Нахожу с первый и последный индекс каждой ветки для начала и окончания ее отображения
     const updateScenariosInfo =  findIndexesEveryBranch(versionsRenderData, scenariosInfo)
 
-    return {updateScenariosInfo, versionsRenderData}
+    return {updateScenariosInfo,  versionsRenderData}
 }
 
 const choiseColor = (numberBranch: number) => {
@@ -223,7 +229,7 @@ const App = () => {
         branchGapWidth = 40,
         branchGapHeight = 40
 
-    const {  updateScenariosInfo, versionsRenderData  } = transformDataForRendering(data)
+     const {updateScenariosInfo,  versionsRenderData} = transformDataForRendering(data)
     
     console.log('3', versionsRenderData)
     console.log('4',updateScenariosInfo )
