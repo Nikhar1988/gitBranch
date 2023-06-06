@@ -1,0 +1,42 @@
+.item-container {
+    display: grid;
+    grid-template-columns:2% 4% 4% 7% 7% 7% 7% 7% 7% 7% 7% 7% 7% 10% 10%;
+}
+
+.attribute-container {
+    display: grid;
+    grid-template-columns: 2% 4% 4% 7% 7% 7% 7% 7% 7% 7% 7% 7% 7% 10% 10%;
+}
+
+.collection {
+    border-top: 1px solid gray;
+}
+
+/* In order to maximize row lines, only display one line for a cell */
+.attribute {
+    border-right: 1px solid gray;
+    border-bottom: 1px solid gray;
+    padding: 2px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.collection-container>.item-container:first-child {
+    background-color: blanchedalmond;
+}
+
+.item-container:hover {
+    background-color: rgb(200, 227, 252);
+}
+
+/* Center header labels */
+.collection-container>.item-container:first-child .attribute {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-overflow: initial;
+    overflow: auto;
+    white-space: normal;
+}
+ 
