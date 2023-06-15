@@ -1,31 +1,30 @@
-import { FC, Fragment, useState } from "react";
+import { FC, Fragment, MutableRefObject, useRef, useState } from "react";
 import { mockData } from "../shared/api/moki";
 import { AirlineDirectory } from "../entities/AirlineDirectory";
 import { Circle, Container, Line, Text } from '../shared/ui'
  
 import "./styles/index.scss"
-import { CommonAxisSettingsLabel } from "devextreme-react/polar-chart";
-
+ 
 export interface MergesI {
-    versionFrom: string,
-    versionTo: string
+    version_from: string,
+    version_to: string
 }
 
 export interface ScenariosI {
     scenario: string,
     version: string,
-    isDefault: boolean,
+    is_default: boolean,
     type: 'copy' | 'link'
 }
 
 export interface VersionsI {
     version: string,
-    prevVersion: string | null,
-    createdAt: string,
-    diffVariations: string[],
-    refer?: string[],
+    prev_version: string | null,
+    created_at: string,
+    diff_variations: string[],
     orderIndex?: number,
-    colorIndex?: number 
+    colorIndex?: number,
+    scenario?: string[]
 }
 
 export interface MockDataI {
@@ -34,6 +33,7 @@ export interface MockDataI {
     merges: MergesI[]
 }
 
+ 
 interface InfoVersionI {
     name: string, 
     lastVersion: string,
@@ -47,152 +47,174 @@ interface InfoVersionI {
     parentOrderIndex?: number
 }
 
+type variantsVersionType = 'prev_version' | 'version'
+
 const sortDateVersionsHandler = (versions: VersionsI[]) => {
-    return versions.sort((a,b)=> new Date(b.createdAt).valueOf() - new Date(a.createdAt).valueOf())
+    return versions.sort((a,b) => new Date(b.created_at).valueOf() - new Date(a.created_at).valueOf())
 }
 
-// const findAvailableOrderIndex = (updateScenariosInfo:InfoVersionI[], index: number) => {
-//     updateScenariosInfo.findIndex(item => {
-//         return item.dateTo 
-//     })
-// }
-
-const determineIndex = (updateScenariosInfo:InfoVersionI[], index: number, orderIndexes:number[]) => {
-    console.log('updateScenariosInfo',updateScenariosInfo, index , orderIndexes )
-    if(index <= 1) {
-        if( orderIndexes.length === index) orderIndexes.push(index)
-        return index
-    } 
-    else if (index > 1 && updateScenariosInfo[index - 1].dateTo < updateScenariosInfo[index].dateFrom) {
-        if( orderIndexes.length=== index) orderIndexes.push(orderIndexes[orderIndexes.length-1])
-        return orderIndexes[orderIndexes.length-1] 
-    } 
-    else {
-        if( orderIndexes.length === index) orderIndexes.push(orderIndexes[orderIndexes.length-1]+1)
-        return orderIndexes[orderIndexes.length-1]
-    }   
-}
-
-const addFieldWithScenarioName = (versions: VersionsI[], updateScenariosInfo:InfoVersionI[]) => {
-    let addReferToScenario:VersionsI[] = versions
-    const orderIndexes: number[] = []
-
-    updateScenariosInfo.forEach((item, i) => {
-        addReferToScenario = addReferToScenario.map(ver => {   
-            if(item.allVersions.includes(ver.version)) {
-                if(ver.refer) return {
-                    ...ver, 
-                    refer: [...ver.refer, item.name ],
-                    orderIndex: determineIndex(updateScenariosInfo,i, orderIndexes),
-                    colorIndex: i
-                }   
-                else return {
-                    ...ver, 
-                    refer: [ item.name ], 
-                    orderIndex: determineIndex(updateScenariosInfo,i, orderIndexes),
-                    colorIndex: i
-                }
-            } else {
-                return ver  
-            } 
-        })
-    })
-    return addReferToScenario
-}
-
-
-const listVersionsByScenario = ( currentVersion: string, versions: VersionsI[]) => {
-    
+const listVersionsByScenario = ( currentVersion: string, versions: VersionsI[], namesProp: variantsVersionType[]) => {
     let searchVersion = currentVersion
-    return versions.filter(item => {
-        if(item.version === searchVersion) {
-            searchVersion = item.prevVersion
+    const findNameVersions = versions.filter(item => {
+        if(item[namesProp[0]] === searchVersion) {
+            searchVersion = item[namesProp[1]]
             return item.version
         }
-    }).map(item => item.version)    
-} 
-
-const findVersionsEveryScenario = (scenario:ScenariosI, versions:VersionsI[], usedVersions: string[]) => {
-    let itemVersions = listVersionsByScenario(scenario.version, versions)
-    return itemVersions.filter(item => {
-       if(!usedVersions.includes(item)) {
-           usedVersions.push(item) 
-           return true
-       }  
-    })
-} 
-
-
-
-const filterScenariousByVersions = (scenarios:ScenariosI[], versions:VersionsI[]) => {
-      const usedVersions: string[] = []
-        console.log('usedVersions', usedVersions)
-
-
-
-
-    return scenarios.map(scenario => {
-        //   const itemVersions = listVersionsByScenario(scenario.version, versions) 
-        //   console.log('itemVersions', itemVersions)
-         const  itemVersions = findVersionsEveryScenario(scenario, versions, usedVersions)
-        
-        return {
-            name: scenario.scenario, 
-            lastVersion: scenario.version,
-            isMain: scenario.isDefault,
-            type: scenario.type,
-            allVersions: itemVersions,
-            dateFrom: versions.find(ver => ver.version === itemVersions[itemVersions.length-1]).createdAt,
-            dateTo: versions.find(ver => ver.version === itemVersions[0]).createdAt   
-        } 
-    }) 
-    .sort((a,b) => new Date(a.dateFrom).valueOf() - new Date(b.dateFrom).valueOf())
-
+    }).map(item => item.version)
     
+    if(namesProp[0] === 'prev_version') findNameVersions.unshift(currentVersion)
+    
+    return findNameVersions
+} 
+interface BranchItemI {
+    versionsNameList: string[],
+    dateFrom:string,
+    dateTo: string,
+    deep?: number,
+    viewOrder?: number ,
+    verticalCoordinatesIndex?: {start: number, end: number} 
 }
 
-const findIndexesEveryBranch = (versions: VersionsI[], updateScenariosInfo:InfoVersionI[]) => {
-    const indexBranchStore:{[key:string]: number[]} = {}
-    const nameBranch = updateScenariosInfo.map(item => item.name)
-    const lastVersionBranchList = updateScenariosInfo.map(item => item.lastVersion) 
-    
-    versions.forEach((version, index) => {
-        version.refer.map(item1 => {
-           return nameBranch.findIndex((item2 ) => item1===item2)
-        }).forEach(branchIndex=> {
-            if(indexBranchStore[branchIndex]) indexBranchStore[branchIndex].push(index)  
-            else indexBranchStore[branchIndex] = [index]
+interface BranchListsI {
+    [key:string]: BranchItemI  
+}
+
+// сортировка branch по дате 
+const earliestChildHandler = (branch:BranchListsI, field: 'dateFrom' | 'dateTo') => {
+    return Object.entries(branch).sort((a,b) => new Date(a[1][field]).valueOf() - new Date(b[1][field]).valueOf())
+}
+// задает порядок отрисовки относительно главной ветки
+const orderViewBranchHandler =( branch:BranchListsI, orderIndex: {current: number}): void => {
+    const sortOneEarliest = earliestChildHandler( branch, 'dateFrom')
+    let storeArr: any = []
+    sortOneEarliest.forEach((i,indexI) => {
+        sortOneEarliest.forEach((k, indexK) => {
+            if(i[1].dateTo < k[1].dateFrom && indexI !== indexK && !storeArr.includes(i[0]) && !storeArr.includes(k[0]) && !i[1].viewOrder && !k[1].viewOrder   ) {
+                storeArr.push(i[0]) 
+                storeArr.push(k[0]) 
+                branch[i[0]].viewOrder = orderIndex.current   
+                branch[k[0]].viewOrder = orderIndex.current  
+            }  
         })
     })
     
-    const orderIndexBranchStore:number[] = lastVersionBranchList.map(lastVer => {
-        return versions.find(ver => ver.version === lastVer).orderIndex
+    sortOneEarliest.forEach(item => {
+        if(!storeArr.includes(item[0]) && !item[1].hasOwnProperty('viewOrder')) {
+            branch[item[0]].viewOrder = ++orderIndex.current 
+        }
     })
-  
-    return updateScenariosInfo.map((item,i) => ({
-        ...item, 
-        indexesSortVersions: indexBranchStore[i], 
-        orderIndex:orderIndexBranchStore[i], 
-        parentOrderIndex: versions[indexBranchStore[i][indexBranchStore[i].length-1]+1]?.orderIndex
-    })) 
+     
+}
+
+const findViewIndex = (branchItem:BranchItemI, versions: VersionsI[]) => {
+    const start = versions.findIndex(item => item.version ===  branchItem.versionsNameList[0])
+    const end = versions.findIndex(item => item.version === branchItem.versionsNameList[branchItem.versionsNameList.length - 1])
+    return {start, end}
+}
+
+const dataOrderRenderHandler =(childList:string[], versions: VersionsI[], branch:BranchListsI = {}, orderIndex: {current: number}, deepIndex: number): void => { 
+    childList.forEach((item, index) => {
+        const versionsNameList = listVersionsByScenario(item, versions, ['prev_version','version'])
+        const dateFrom = versions.find(ver => ver.version === versionsNameList[0]).created_at
+        const dateTo = versions.find(ver => ver.version === versionsNameList[versionsNameList.length - 1]).created_at
+        branch[item] = { versionsNameList, dateFrom, dateTo, deep: deepIndex  }
+    }) 
+    
+    // вычеслить порядок отрисовки 
+    orderViewBranchHandler(branch, orderIndex)
+}
+
+
+
+const findStartEndBranch  = ( branch:BranchListsI, versions: VersionsI[]): void => {   
+    for(let key in branch) {
+        branch[key].verticalCoordinatesIndex  =  findViewIndex(branch[key], versions)
+     }
+}
+
+const determineOrderView = (childList:string[], versions: VersionsI[], branchs:BranchListsI={}, orderIndex:{current:number}, deepIndex: number) => {
+    let versionUpdate = versions
+
+    dataOrderRenderHandler(childList, versionUpdate, branchs, orderIndex,  deepIndex)
+    
+    console.log('dataOrderRender', branchs )
+
+    childList.forEach((item, index) => {
+        // задаем расположенеие точек по вертикали и по горизонтали
+        versionUpdate = versionUpdate.map(ver => branchs[item].versionsNameList.includes(ver.version) ? {...ver, orderIndex: branchs[item].viewOrder, colorIndex: branchs[item].viewOrder} : ver)
+        // ищем детей если есть дети запускаем функцию заново 
+        const childVersions = versionUpdate.filter(ver => branchs[item].versionsNameList.includes(ver.prev_version) && !ver.hasOwnProperty('orderIndex')).map(ver => ver.version)
+        if(childVersions.length) versionUpdate = determineOrderView(childVersions, versionUpdate, branchs, orderIndex,  deepIndex+1 ) 
+        
+    }) 
+    findStartEndBranch(branchs,versions )
+ 
+    return versionUpdate 
 } 
 
+const findOrderLineHandler =(versions: VersionsI[], scenarios:ScenariosI[], orderIndex: {current:number}) => {
+    const mainVersionName = scenarios.find(scen => scen.is_default).version 
+    const mainVersionsList = listVersionsByScenario(mainVersionName, versions, ['version','prev_version'])
+ 
+    const mainWithOrder = versions
+        .map(ver => mainVersionsList.includes(ver.version) ? {...ver, orderIndex: 0, colorIndex: 0} : ver)
+        .sort((a,b) => new Date(a.created_at).valueOf() - new Date(b.created_at).valueOf())
 
 
-const transformDataForRendering = (data: MockDataI) => {
+    const mainChild = mainWithOrder.filter(ver => mainVersionsList.includes(ver.prev_version) && !ver.hasOwnProperty('orderIndex')).map(ver => ver.version)
+    // mainBranchInfo
+    const branchesInfo:BranchListsI = {[mainVersionName]: {
+        viewOrder: 0, 
+        versionsNameList: mainVersionsList.reverse(), 
+        deep: 0,
+        dateFrom: versions.find(ver => ver.version === mainVersionsList[0]).created_at,
+        dateTo:versions.find(ver => ver.version === mainVersionsList[mainVersionsList.length - 1]).created_at,
+    }}
+ 
+    let deepIndex = 1
+
+    const orderViewInfo = determineOrderView(mainChild, mainWithOrder, branchesInfo, orderIndex, deepIndex )
+    
+    return {orderViewInfo, branchesInfo}
+}
+
+const assignScenarioHandler = (versions: VersionsI[], scenarios:ScenariosI[]): void => {
+    versions.forEach(ver => {ver.scenario = []})
+    scenarios.forEach(scen => {
+         const index = versions.findIndex(ver => scen.version === ver.version)
+         versions[index].scenario.push(scen.scenario)
+    })
+}
+
+const findMergeCortdinate = (versions: VersionsI[], merges: MergesI[]) => {
+    return  merges.map(item => {
+        const from = versions.find (f => f.version === item.version_from)
+        const to = versions.find (f => f.version === item.version_to) 
+        return {
+            ...item, 
+            verticalFrom: versions.findIndex(f => f.version === item.version_from),
+            verticalTo: versions.findIndex(f => f.version === item.version_to), 
+            horizontalFrom:from.orderIndex,
+            horizontalTo: to.orderIndex,
+            colorFrom:from.colorIndex, 
+        } 
+    })
+}
+
+const transformDataForRendering = (data: MockDataI, orderIndex:{current:number}) => {
     // 1. сортируем массив versions по дате    
     const sortedVersionsForDate = sortDateVersionsHandler(data.versions)
-    
-    // 2. Получить данные где отображены сценарии с названиями именно их версий 
-    const scenariosInfo = filterScenariousByVersions(data.scenarios, sortedVersionsForDate)
 
-    // 3. в versions  добовляем поле refer обозначающее какой сценарий относится к какой ветке 
-    const versionsRenderData  = addFieldWithScenarioName(sortedVersionsForDate, scenariosInfo)
+    // 2. добавляем в версии названия сценариев      
+    assignScenarioHandler(sortedVersionsForDate, data.scenarios)
 
-    // 4. Нахожу с первый и последный индекс каждой ветки для начала и окончания ее отображения
-    const updateScenariosInfo =  findIndexesEveryBranch(versionsRenderData, scenariosInfo)
+    //3. надо отсортировать и создать поле orderLine отрисовки для main она будет 0 и для других
+    const findOrderList = findOrderLineHandler(sortedVersionsForDate, data.scenarios, orderIndex) 
 
-    return {updateScenariosInfo,  versionsRenderData}
+    //4. создаем данные для отрисовки merge
+    const mergeCortdinate = findMergeCortdinate(findOrderList.orderViewInfo,data.merges )
+   
+    return {...findOrderList, mergeCortdinate}
 }
 
 const choiseColor = (numberBranch: number) => {
@@ -221,68 +243,70 @@ const choiseColor = (numberBranch: number) => {
 const App = () => { 
     const data = mockData.interseckDate;
     console.log('data', data)
-    
+    const orderIndex = useRef<number>(1)
     const
-        widthSvg = 400,
-        heightSvg = 1200, 
+        widthSvg = 800, 
         circleR = 4,
         branchGapWidth = 40,
         branchGapHeight = 40
 
-     const {updateScenariosInfo,  versionsRenderData} = transformDataForRendering(data)
-    
-    console.log('3', versionsRenderData)
-    console.log('4',updateScenariosInfo )
-    
-  
+    const { orderViewInfo, branchesInfo, mergeCortdinate } = transformDataForRendering(data, orderIndex)
+    const versionsCount = orderViewInfo.length
+
+console.log('конечные данные', orderViewInfo, branchesInfo, mergeCortdinate)
+   
     return  <Container>
-                <svg width={widthSvg} height={heightSvg}>
-                    {versionsRenderData.map((item: VersionsI, i: number) => {    
-                        return  <Fragment key={i} >
+                 <svg width={widthSvg} height={branchGapHeight * versionsCount+40}>
+                    {orderViewInfo.map((item: VersionsI, i: number) => {
+                        const textItem = orderViewInfo[versionsCount-1- i]  
+                        const text = textItem.scenario.length ?  `version: ${textItem.version}, variations: ${textItem.diff_variations}, scenario: ${textItem.scenario}` : `version: ${textItem.version}, variations: ${textItem.diff_variations}` 
+                        return  <Fragment key={i}>
                                     <Circle 
                                         key={i} 
-                                        cx={branchGapWidth *(item.orderIndex+1)} 
-                                        cy={branchGapHeight*(i+1)} 
+                                        cx={branchGapWidth * (item.orderIndex+1)} 
+                                        cy={(branchGapHeight * versionsCount) - branchGapHeight * i} 
                                         r={circleR} 
                                         color={choiseColor(item.colorIndex)}  
                                     /> 
-                                    <Text x={branchGapWidth * updateScenariosInfo.length+20} y={branchGapHeight*(i+1)+5} text={item.version}/>  
+                                    <Text x={branchGapWidth * (orderIndex.current + 1) +20} y={branchGapHeight*(i+1)} text={text}/>  
                                 </Fragment>           
                     })}
-                    {updateScenariosInfo.map((item: InfoVersionI, i: number) => {
-                        const startIndex = item.indexesSortVersions[0]
-                        const endIndex = item.indexesSortVersions[item.indexesSortVersions.length -1]
+                    {Object.entries(branchesInfo).map((item: [string, BranchItemI], i: number) => {
+                         
                         return  (
-                            <g key={item.name}>
+                            <g key={item[0]}>
                                 <Line  
-                                    x1={branchGapWidth * (item.orderIndex+1)} 
-                                    y1={branchGapHeight * (startIndex+1)} 
-                                    x2={branchGapWidth * (item.orderIndex+1)} 
-                                    y2={branchGapHeight * (endIndex+1)} 
-                                    color={choiseColor(i)}
-                                /> 
+                                    x1={branchGapWidth * (item[1].viewOrder+1)} 
+                                    y1={(branchGapHeight * versionsCount) - branchGapHeight* (item[1].verticalCoordinatesIndex.start)} 
+                                    x2={branchGapWidth * (item[1].viewOrder+1)} 
+                                    y2={(branchGapHeight * versionsCount) - branchGapHeight* (item[1].verticalCoordinatesIndex.end)} 
+                                    color={choiseColor(item[1].viewOrder)}
+                                />
                                 {i === 0 
                                     ? null 
                                     : <>
                                         <Line 
-                                            x1={branchGapWidth * (item.orderIndex+1)} 
-                                            y1={branchGapHeight * (endIndex+1)} 
-                                            x2={branchGapWidth * (item.parentOrderIndex+1)} 
-                                            y2={branchGapHeight * (endIndex+2)} 
-                                            color={choiseColor(i)}/>
-                                        {/* <Line 
-                                            x1={branchGapWidth * (i+1)} 
-                                            y1={branchGapHeight * (startIndex+1)}
-                                            x2={branchGapWidth * (i >=2 ? i-1 : i)} 
-                                            y2={branchGapHeight * (startIndex)} 
-                                            color={choiseColor(i)} 
-                                            dash="5 5"
-                                        /> */}
+                                            x1={branchGapWidth * (item[1].viewOrder+1)} 
+                                            y1={(branchGapHeight * versionsCount) - branchGapHeight* (item[1].verticalCoordinatesIndex.start)} 
+                                            x2={branchGapWidth * (item[1].deep)} 
+                                            y2={(branchGapHeight * versionsCount) - branchGapHeight* (item[1].verticalCoordinatesIndex.start-1)} 
+                                            color={choiseColor(item[1].viewOrder)}/>
                                     </> 
-                                } 
+                                }            
                             </g>  
                         )
-                    })}    
+                    })}
+                    { mergeCortdinate.map((item, index) => {
+                        return <Line 
+                                key ={index} 
+                                x1={branchGapWidth * (item.horizontalFrom+1)} 
+                                y1={(branchGapHeight * versionsCount) - branchGapHeight* (item.verticalFrom)}
+                                x2={branchGapWidth * (item.horizontalTo+1)} 
+                                y2={(branchGapHeight * versionsCount) - branchGapHeight * (item.verticalTo)} 
+                                color={choiseColor(item.colorFrom)} 
+                                dash="5 5"
+                            />
+                    })} 
                 </svg>
             </Container>  
             
