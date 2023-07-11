@@ -4,6 +4,7 @@ import { AirlineDirectory } from "../entities/AirlineDirectory";
 import { Circle, Container, Line, Text } from '../shared/ui'
  
 import "./styles/index.scss"
+import useFetch from "../shared/lib/hooks/useFetch";
  
 export interface MergesI {
     version_from: string,
@@ -49,6 +50,19 @@ interface InfoVersionI {
 
 type variantsVersionType = 'prev_version' | 'version'
 
+interface BranchItemI {
+    versionsNameList: string[],
+    dateFrom:string,
+    dateTo: string,
+    deep?: number,
+    viewOrder?: number ,
+    verticalCoordinatesIndex?: {start: number, end: number} 
+}
+
+interface BranchListsI {
+    [key:string]: BranchItemI  
+}
+
 const sortDateVersionsHandler = (versions: VersionsI[]) => {
     return versions.sort((a,b) => new Date(b.created_at).valueOf() - new Date(a.created_at).valueOf())
 }
@@ -66,18 +80,7 @@ const listVersionsByScenario = ( currentVersion: string, versions: VersionsI[], 
     
     return findNameVersions
 } 
-interface BranchItemI {
-    versionsNameList: string[],
-    dateFrom:string,
-    dateTo: string,
-    deep?: number,
-    viewOrder?: number ,
-    verticalCoordinatesIndex?: {start: number, end: number} 
-}
 
-interface BranchListsI {
-    [key:string]: BranchItemI  
-}
 
 // сортировка branch по дате 
 const earliestChildHandler = (branch:BranchListsI, field: 'dateFrom' | 'dateTo') => {
@@ -99,7 +102,9 @@ const orderViewBranchHandler =( branch:BranchListsI, orderIndex: {current: numbe
     })
     
     sortOneEarliest.forEach(item => {
+       
         if(!storeArr.includes(item[0]) && !item[1].hasOwnProperty('viewOrder')) {
+            debugger
             branch[item[0]].viewOrder = ++orderIndex.current 
         }
     })
@@ -138,7 +143,7 @@ const determineOrderView = (childList:string[], versions: VersionsI[], branchs:B
     dataOrderRenderHandler(childList, versionUpdate, branchs, orderIndex,  deepIndex)
     
     console.log('dataOrderRender', branchs )
-
+ 
     childList.forEach((item, index) => {
         // задаем расположенеие точек по вертикали и по горизонтали
         versionUpdate = versionUpdate.map(ver => branchs[item].versionsNameList.includes(ver.version) ? {...ver, orderIndex: branchs[item].viewOrder, colorIndex: branchs[item].viewOrder} : ver)
@@ -212,7 +217,7 @@ const transformDataForRendering = (data: MockDataI, orderIndex:{current:number})
     const findOrderList = findOrderLineHandler(sortedVersionsForDate, data.scenarios, orderIndex) 
 
     //4. создаем данные для отрисовки merge
-    const mergeCortdinate = findMergeCortdinate(findOrderList.orderViewInfo,data.merges )
+    const mergeCortdinate = findMergeCortdinate(findOrderList.orderViewInfo,data.merges)
    
     return {...findOrderList, mergeCortdinate}
 }
@@ -242,7 +247,10 @@ const choiseColor = (numberBranch: number) => {
 
 const App = () => { 
     const data = mockData.interseckDate;
-    console.log('data', data)
+    // const graph = useFetch('http://10.96.183.59:8000/api/v1/scenario/graph') 
+    // console.log('graph', graph)
+    // http://10.96.183.59:8000//api/v1/scenario/graph
+
     const orderIndex = useRef<number>(1)
     const
         widthSvg = 800, 
@@ -253,6 +261,8 @@ const App = () => {
     const { orderViewInfo, branchesInfo, mergeCortdinate } = transformDataForRendering(data, orderIndex)
     const versionsCount = orderViewInfo.length
 
+
+    
 console.log('конечные данные', orderViewInfo, branchesInfo, mergeCortdinate)
    
     return  <Container>
@@ -297,15 +307,15 @@ console.log('конечные данные', orderViewInfo, branchesInfo, mergeC
                         )
                     })}
                     { mergeCortdinate.map((item, index) => {
-                        return <Line 
-                                key ={index} 
-                                x1={branchGapWidth * (item.horizontalFrom+1)} 
-                                y1={(branchGapHeight * versionsCount) - branchGapHeight* (item.verticalFrom)}
-                                x2={branchGapWidth * (item.horizontalTo+1)} 
-                                y2={(branchGapHeight * versionsCount) - branchGapHeight * (item.verticalTo)} 
-                                color={choiseColor(item.colorFrom)} 
-                                dash="5 5"
-                            />
+                        return  <Line 
+                                    key ={index} 
+                                    x1={branchGapWidth * (item.horizontalFrom+1)} 
+                                    y1={(branchGapHeight * versionsCount) - branchGapHeight* (item.verticalFrom)}
+                                    x2={branchGapWidth * (item.horizontalTo+1)} 
+                                    y2={(branchGapHeight * versionsCount) - branchGapHeight * (item.verticalTo)} 
+                                    color={choiseColor(item.colorFrom)} 
+                                     
+                                />
                     })} 
                 </svg>
             </Container>  

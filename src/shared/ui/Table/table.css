@@ -1,0 +1,52 @@
+.item-container {
+  display: -ms-grid;
+  display: grid;
+  -ms-grid-columns: 2% 4% 4% 7% 7% 7% 7% 7% 7% 7% 7% 7% 7% 10% 10%;
+      grid-template-columns: 2% 4% 4% 7% 7% 7% 7% 7% 7% 7% 7% 7% 7% 10% 10%;
+}
+
+.attribute-container {
+  display: -ms-grid;
+  display: grid;
+  -ms-grid-columns: 2% 4% 4% 7% 7% 7% 7% 7% 7% 7% 7% 7% 7% 10% 10%;
+      grid-template-columns: 2% 4% 4% 7% 7% 7% 7% 7% 7% 7% 7% 7% 7% 10% 10%;
+}
+
+.collection {
+  border-top: 1px solid gray;
+}
+
+/* In order to maximize row lines, only display one line for a cell */
+.attribute {
+  border-right: 1px solid gray;
+  border-bottom: 1px solid gray;
+  padding: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.collection-container > .item-container:first-child {
+  background-color: blanchedalmond;
+}
+
+.item-container:hover {
+  background-color: #c8e3fc;
+}
+
+/* Center header labels */
+.collection-container > .item-container:first-child .attribute {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  text-overflow: initial;
+  overflow: auto;
+  white-space: normal;
+}
+/*# sourceMappingURL=table.css.map */
